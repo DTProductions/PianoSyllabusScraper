@@ -25,8 +25,6 @@ namespace PianoSyllabusScraper.Model.Scrapers
 			HtmlDocument pieceDoc = new();
 			pieceDoc.LoadHtml(html);
 
-            Console.WriteLine(html);
-
             Piece piece = new Piece();
 
 			HtmlNodeCollection infoRows = pieceDoc.DocumentNode.SelectNodes("//div[@class='flexbox1']/table/tr");
@@ -53,9 +51,30 @@ namespace PianoSyllabusScraper.Model.Scrapers
             return piece;
 		}
 
+        public async Task<List<Piece>> ScrapeAllPiecesBy(string abbrComposerName) {
+			MultipartFormDataContent form = new();
+			form.Add(new StringContent(abbrComposerName), "composer");
+
+			HttpResponseMessage composerSearchResponse = await httpClient.PostAsync("x-default.php", form);
+			string html = await composerSearchResponse.Content.ReadAsStringAsync();
+
+			HtmlDocument doc = new();
+			doc.LoadHtml(html);
+
+			List<Piece> pieces = new List<Piece>();
+
+			HtmlNodeCollection rows = doc.DocumentNode.SelectNodes("//tr[@class='evenrows'] | //tr[@class='oddrows']");
+			foreach(HtmlNode row in rows) {
+                string pieceUrl = row.FirstChild.FirstChild.Attributes["href"].Value;
+				pieces.Add(await ScrapePiece(pieceUrl));
+			}
+
+			return pieces;
+		}
+
         /// <param name="doc">Loaded Html Document</param>
-        private Dictionary<string, string> ScrapeGrades(HtmlDocument pieceDoc) {
-            Dictionary<string, string> grades = new();
+        private Dictionary<string, List<string>> ScrapeGrades(HtmlDocument pieceDoc) {
+            Dictionary<string, List<string>> grades = new();
 
 			HtmlNode gradesDiv = pieceDoc.DocumentNode.SelectSingleNode("//div[@class='entries']");
 
@@ -64,7 +83,12 @@ namespace PianoSyllabusScraper.Model.Scrapers
                 string gradingSystem = gradeRow.GetElementNodes()[1].InnerText;
                 string grade = gradeRow.GetElementNodes()[2].InnerText;
 
-				grades.Add(gradingSystem, grade);
+                if (!grades.ContainsKey(gradingSystem)) {
+					grades.Add(gradingSystem, new List<string> { grade });
+                }
+                else {
+                    grades[gradingSystem].Add(grade);
+                }
 			}
 
             return grades;

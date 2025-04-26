@@ -10,6 +10,6 @@ namespace PianoSyllabusScraper.Model
 		public string? ComposerName { get; set; }
 		public string? Title { get; set;}
 		public string? ArrangerName { get; set;}
-		public Dictionary<string, string>? Grades { get; set;}
+		public Dictionary<string, List<string>>? Grades { get; set;}
 	}
 }
