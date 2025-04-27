@@ -20,7 +20,7 @@ namespace PianoSyllabusScraper
 
             await composerScraper.ScrapeAllComposersAsync(@"C:\piano_syllabus_test");
 
-            Console.WriteLine("Data scraped");
+			Console.WriteLine("Data scraped");
 			Console.ReadLine();
         }
     }

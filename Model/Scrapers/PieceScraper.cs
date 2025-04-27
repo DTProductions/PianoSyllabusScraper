@@ -53,9 +53,11 @@ namespace PianoSyllabusScraper.Model.Scrapers
 
         public async Task<List<Piece>> ScrapeAllPiecesBy(string abbrComposerName) {
 
-            // edge case due to inconsistencies in the PianoSyllabus database
+            // edge cases due to inconsistencies in the PianoSyllabus database
             if(abbrComposerName == "Rossum F. van") {
                 abbrComposerName = "Rossum F.";
+			} else if(abbrComposerName == "Li Yinghai") {
+				abbrComposerName = "Li Y.";
 			}
 
             HttpResponseMessage? composerSearchResponse = null;
