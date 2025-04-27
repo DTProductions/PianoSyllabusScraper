@@ -10,19 +10,16 @@ using System.Text.Json;
 
 namespace PianoSyllabusScraper.Model.Scrapers
 {
-    internal class ComposerScraper
-    {
+    internal class ComposerScraper {
         private HttpClient httpClient;
         private PieceScraper pieceScraper;
 
-        public ComposerScraper(HttpClient httpClient, PieceScraper pieceScraper)
-        {
+        public ComposerScraper(HttpClient httpClient, PieceScraper pieceScraper) {
             this.httpClient = httpClient;
             this.pieceScraper = pieceScraper;
         }
 
-        private async Task<List<string>> ScrapeAllNationalities()
-        {
+        private async Task<List<string>> ScrapeAllNationalities() {
             List<string> nationalities = new();
 
             HttpResponseMessage response = await httpClient.GetAsync("x-composers.php");
@@ -33,10 +30,8 @@ namespace PianoSyllabusScraper.Model.Scrapers
 
             HtmlNode selectedNode = doc.DocumentNode.SelectSingleNode("//select[@name='nation']");
 
-            foreach (HtmlNode option in selectedNode.ChildNodes)
-            {
-                if (option.NodeType == HtmlNodeType.Element && option.InnerText != "select nationality")
-                {
+            foreach (HtmlNode option in selectedNode.ChildNodes) {
+                if (option.NodeType == HtmlNodeType.Element && option.InnerText != "select nationality") {
                     nationalities.Add(option.Attributes["value"].Value);
                 }
             }
@@ -44,12 +39,10 @@ namespace PianoSyllabusScraper.Model.Scrapers
             return nationalities;
         }
 
-        public async Task ScrapeAllComposersAsync(string basePath)
-        {
+        public async Task ScrapeAllComposersAsync(string basePath) {
             List<string> nationalities = await ScrapeAllNationalities();
-
-            foreach (string nationality in nationalities)
-            {
+            
+            foreach (string nationality in nationalities) {
                 MultipartFormDataContent form = new();
                 form.Add(new StringContent(nationality), "nation");
                 HttpResponseMessage nationalitySearchResponse = await httpClient.PostAsync("x-composers.php", form);
@@ -60,8 +53,7 @@ namespace PianoSyllabusScraper.Model.Scrapers
                 doc.LoadHtml(html);
 
                 HtmlNodeCollection selectedNodes = doc.DocumentNode.SelectNodes("//tr[@class='evenrows'] | //tr[@class='oddrows']");
-                foreach (HtmlNode composerRow in selectedNodes)
-                {
+                foreach (HtmlNode composerRow in selectedNodes) {
                     List<HtmlNode> composerRowData = composerRow.GetElementNodes("td");
 
 					Composer composer = new Composer();
@@ -71,21 +63,23 @@ namespace PianoSyllabusScraper.Model.Scrapers
 
                     List<Piece> composedPieces = await pieceScraper.ScrapeAllPiecesBy(composer.AbbrName);
 
-					composer.Name = composedPieces[0].ComposerName;
+                    if(composedPieces != null && composedPieces.Count > 0) {
+						composer.Name = composedPieces[0].ComposerName;
 
-                    string composerPath = Path.Combine(basePath, composer.AbbrName);
+						string composerPath = Path.Combine(basePath, composer.AbbrName);
 
-					Directory.CreateDirectory(composerPath);
+						Directory.CreateDirectory(composerPath);
 
-                    using(FileStream piecesStream = File.Create(Path.Combine(composerPath, "pieces.json"))) {
-                        JsonSerializer.SerializeAsync(piecesStream, composedPieces);
-                    }
+						using (FileStream piecesStream = File.Create(Path.Combine(composerPath, "pieces.json"))) {
+							await JsonSerializer.SerializeAsync(piecesStream, composedPieces);
+						}
 
-                    using (FileStream composerStream = File.Create(Path.Combine(composerPath, composer.AbbrName + ".json"))) {
-                        JsonSerializer.SerializeAsync(composerStream, composer);
-                    }
+						using (FileStream composerStream = File.Create(Path.Combine(composerPath, composer.AbbrName + ".json"))) {
+							await JsonSerializer.SerializeAsync(composerStream, composer);
+						}
 
-					Console.WriteLine("Composer's info downloaded: " + composer.AbbrName);
+						Console.WriteLine("Composer's info downloaded: " + composer.AbbrName);
+					}
 				}
             }
         }

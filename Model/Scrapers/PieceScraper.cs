@@ -52,11 +52,32 @@ namespace PianoSyllabusScraper.Model.Scrapers
 		}
 
         public async Task<List<Piece>> ScrapeAllPiecesBy(string abbrComposerName) {
-			MultipartFormDataContent form = new();
-			form.Add(new StringContent(abbrComposerName), "composer");
 
-			HttpResponseMessage composerSearchResponse = await httpClient.PostAsync("x-default.php", form);
-			string html = await composerSearchResponse.Content.ReadAsStringAsync();
+            // edge case due to inconsistencies in the PianoSyllabus database
+            if(abbrComposerName == "Rossum F. van") {
+                abbrComposerName = "Rossum F.";
+			}
+
+            HttpResponseMessage? composerSearchResponse = null;
+            string html = "";
+            for(int i = 0; i < 10; i++) {
+				try {
+					MultipartFormDataContent form = new();
+					form.Add(new StringContent(abbrComposerName), "composer");
+
+					composerSearchResponse = await httpClient.PostAsync("x-default.php", form);
+					html = await composerSearchResponse.Content.ReadAsStringAsync();
+                    break;
+				} catch (HttpRequestException e) {
+					Console.WriteLine("An HttpRequestException occurred while fetching the composer's pieces: " + abbrComposerName);
+					composerSearchResponse = null;
+					await Task.Delay(8000);
+				}
+			}
+
+			if(composerSearchResponse == null) {
+				return null;
+			}
 
 			HtmlDocument doc = new();
 			doc.LoadHtml(html);
@@ -64,9 +85,17 @@ namespace PianoSyllabusScraper.Model.Scrapers
 			List<Piece> pieces = new List<Piece>();
 
 			HtmlNodeCollection rows = doc.DocumentNode.SelectNodes("//tr[@class='evenrows'] | //tr[@class='oddrows']");
-			foreach(HtmlNode row in rows) {
-                string pieceUrl = row.FirstChild.FirstChild.Attributes["href"].Value;
-				pieces.Add(await ScrapePiece(pieceUrl));
+            if (rows == null) {
+                Console.WriteLine("No compositions found for composer: " + abbrComposerName);
+            } else {
+				foreach (HtmlNode row in rows) {
+					if(row.FirstChild.FirstChild.InnerText != abbrComposerName) {
+						continue;
+					}
+
+					string pieceUrl = row.FirstChild.FirstChild.Attributes["href"].Value;
+					pieces.Add(await ScrapePiece(pieceUrl));
+				}
 			}
 
 			return pieces;
